@@ -15,6 +15,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.TextArea;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -31,32 +32,35 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 
-/**
- *
- * @author Alexander 'Taurus' Babich
- */
 public class FXDemo extends Application {
 
     private Text title;
     private Text details;
     private ComboBox clients;
+    private TextArea reportArea;
 
     @Override
     public void start(Stage primaryStage) {
-
         BorderPane border = new BorderPane();
         HBox hbox = addHBox();
         border.setTop(hbox);
         border.setLeft(addVBox());
         addStackPane(hbox);
 
-        Scene scene = new Scene(border, 300, 250);
+        reportArea = new TextArea();
+        reportArea.setEditable(false);
+        reportArea.setFont(Font.font("Arial", FontWeight.NORMAL, 12));
+        reportArea.setPrefHeight(150);
+        border.setBottom(reportArea);
 
+        Scene scene = new Scene(border, 400, 450);
         primaryStage.setTitle("MyBank Clients");
         primaryStage.setScene(scene);
         primaryStage.show();
-
     }
 
     public VBox addVBox() {
@@ -97,29 +101,61 @@ public class FXDemo extends Application {
         buttonShow.setPrefSize(100, 20);
 
         buttonShow.setOnAction(new EventHandler<ActionEvent>() {
-
             @Override
             public void handle(ActionEvent event) {
                 try {
                     int custNo = clients.getItems().indexOf(clients.getValue());
-                    int accNo = 0;
+                    if (custNo < 0) throw new Exception("You need to choose a client first!");
+
                     title.setText(clients.getValue().toString());
-                    String accType = Bank.getCustomer(custNo).getAccount(accNo) instanceof CheckingAccount ? "Checking" : "Savings";
-                    details.setText("Account:\t\t#" + accNo + "\nAcc Type:\t" + accType + "\nBalance:\t\t$" + Bank.getCustomer(custNo).getAccount(accNo).getBalance());
+
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < Bank.getCustomer(custNo).getNumberOfAccounts(); i++) {
+                        String accType = Bank.getCustomer(custNo).getAccount(i) instanceof CheckingAccount ? "Checking" : "Savings";
+                        sb.append("Account:\t\t#").append(i)
+                          .append("\nAcc Type:\t").append(accType)
+                          .append("\nBalance:\t\t$").append(Bank.getCustomer(custNo).getAccount(i).getBalance())
+                          .append("\n\n");
+                    }
+                    details.setText(sb.toString().trim());
+
                 } catch (Exception e) {
                     Alert alert = new Alert(AlertType.ERROR);
                     alert.setTitle("Error getting client...");
-                    // Header Text: null
                     alert.setHeaderText(null);
-                    String details = e.getMessage() != null ? e.getMessage() : "You need to choose a client first!";
-                    alert.setContentText("Error details: " + details);
+                    String msg = e.getMessage() != null ? e.getMessage() : "You need to choose a client first!";
+                    alert.setContentText("Error details: " + msg);
                     alert.showAndWait();
                 }
             }
         });
 
-        hbox.getChildren().addAll(clients, buttonShow);
+        Button buttonReport = new Button("Report");
+        buttonReport.setPrefSize(100, 20);
 
+        buttonReport.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < Bank.getNumberOfCustomers(); i++) {
+                    sb.append(Bank.getCustomer(i).getLastName())
+                      .append(", ")
+                      .append(Bank.getCustomer(i).getFirstName())
+                      .append("\n");
+                    for (int j = 0; j < Bank.getCustomer(i).getNumberOfAccounts(); j++) {
+                        String accType = Bank.getCustomer(i).getAccount(j) instanceof CheckingAccount ? "Checking" : "Savings";
+                        sb.append("  Account #").append(j)
+                          .append(" | Type: ").append(accType)
+                          .append(" | Balance: $").append(Bank.getCustomer(i).getAccount(j).getBalance())
+                          .append("\n");
+                    }
+                    sb.append("\n");
+                }
+                reportArea.setText(sb.toString());
+            }
+        });
+
+        hbox.getChildren().addAll(clients, buttonShow, buttonReport);
         return hbox;
     }
 
@@ -142,47 +178,61 @@ public class FXDemo extends Application {
 
         helpIcon.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
-            public void handle(MouseEvent t) {
-                ShowAboutInfo();
-            }
+            public void handle(MouseEvent t) { ShowAboutInfo(); }
         });
 
         helpText.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
-            public void handle(MouseEvent t) {
-                ShowAboutInfo();
-            }
+            public void handle(MouseEvent t) { ShowAboutInfo(); }
         });
-        
-        stack.getChildren().addAll(helpIcon, helpText);
-        stack.setAlignment(Pos.CENTER_RIGHT);     // Right-justify nodes in stack
-        StackPane.setMargin(helpText, new Insets(0, 10, 0, 0)); // Center "?"
 
-        hb.getChildren().add(stack);            // Add to HBox from Example 1-2
-        HBox.setHgrow(stack, Priority.ALWAYS);    // Give stack any extra space
+        stack.getChildren().addAll(helpIcon, helpText);
+        stack.setAlignment(Pos.CENTER_RIGHT);
+        StackPane.setMargin(helpText, new Insets(0, 10, 0, 0));
+
+        hb.getChildren().add(stack);
+        HBox.setHgrow(stack, Priority.ALWAYS);
     }
 
     private void ShowAboutInfo() {
         Alert alert = new Alert(AlertType.INFORMATION);
         alert.setTitle("About");
-        // Header Text: null
         alert.setHeaderText(null);
-        alert.setContentText("Just a simple JavaFX demo.\nCopyright \u00A9 2019 Alexander \'Taurus\' Babich");
+        alert.setContentText("Just a simple JavaFX demo.\nCopyright \u00A9 2019 Alexander 'Taurus' Babich");
         alert.showAndWait();
     }
 
-    /**
-     * @param args the command line arguments
-     */
     public static void main(String[] args) {
-        Bank.addCustomer("John", "Doe");
-        Bank.getCustomer(0).addAccount(new SavingsAccount(100, 2));
-        Bank.addCustomer("Fox", "Mulder");
-        Bank.getCustomer(1).addAccount(new CheckingAccount(1000, 500));
-        Bank.addCustomer("Dana", "Scully");
-        Bank.getCustomer(2).addAccount(new CheckingAccount(1060));
+        try (BufferedReader br = new BufferedReader(new FileReader("test.dat"))) {
+            int numCustomers = Integer.parseInt(br.readLine().trim());
+            br.readLine();
+
+            for (int i = 0; i < numCustomers; i++) {
+                String[] custData = br.readLine().trim().split("\\s+");
+                String firstName = custData[0];
+                String lastName = custData[1];
+                int numAccounts = Integer.parseInt(custData[2]);
+
+                Bank.addCustomer(firstName, lastName);
+
+                for (int j = 0; j < numAccounts; j++) {
+                    String[] accData = br.readLine().trim().split("\\s+");
+                    String accType = accData[0];
+                    double balance = Double.parseDouble(accData[1]);
+                    double extra = Double.parseDouble(accData[2]);
+
+                    if (accType.equals("S")) {
+                        Bank.getCustomer(i).addAccount(new SavingsAccount(balance, extra));
+                    } else {
+                        Bank.getCustomer(i).addAccount(new CheckingAccount(balance, extra));
+                    }
+                }
+                br.readLine();
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading test.dat: " + e.getMessage());
+        }
 
         launch(args);
     }
-
 }
